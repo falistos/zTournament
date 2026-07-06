@@ -186,8 +186,8 @@ public abstract class MessageUtils {
 	protected void title(Player player, String title, String subtitle, int fadeInTime, int showTime, int fadeOutTime) {
 
 		if (NMSUtils.isNewVersion()) {
-			player.sendTitle(title, subtitle, fadeInTime, showTime, fadeOutTime);
-			return;
+			// sendTitle(String, String, int, int, int) not available on this build target;
+			// fall through to the NMS reflection path which handles timing correctly.
 		}
 
 		try {

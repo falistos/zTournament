@@ -271,8 +271,8 @@ public class TournamentListener extends ListenerAdapter {
 				int[] slots = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 40 };
 				for (int a : slots) {
 					ItemStack itemStack = inventory.getItem(a);
-					if (itemStack != null && itemStack.getType()
-							.equals(NMSUtils.isOldVersion() ? getMaterial(449) : Material.TOTEM_OF_UNDYING)) {
+					Material totemMat = NMSUtils.isOldVersion() ? getMaterial(449) : Material.getMaterial("TOTEM_OF_UNDYING");
+					if (itemStack != null && totemMat != null && itemStack.getType().equals(totemMat)) {
 						return;
 					}
 				}

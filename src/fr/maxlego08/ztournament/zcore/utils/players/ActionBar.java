@@ -1,6 +1,5 @@
 package fr.maxlego08.ztournament.zcore.utils.players;
 
-import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -48,12 +47,7 @@ public class ActionBar {
             return;
         }
 
-        if (nmsVersion != 1.7 && nmsVersion != 1.8 && nmsVersion != 1.9) {
-            player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-                    new TextComponent(TextComponent.fromLegacyText(message)));
-
-            return;
-        }
+        // Reflection-based path handles all supported versions (1.7/1.8/1.9)
 
         try {
             Object craftPlayer = craftPlayerClass.cast(player);

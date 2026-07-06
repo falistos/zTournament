@@ -51,8 +51,9 @@ public class TournamentEvent extends Event implements Cancellable {
 		this.cancelled = c;
 	}
 
-	public void callEvent(){
+	public boolean callEvent(){
 		Bukkit.getScheduler().runTask(ZPlugin.z(), () -> Bukkit.getPluginManager().callEvent(this));
+		return !isCancelled();
 	}
 	
 }
