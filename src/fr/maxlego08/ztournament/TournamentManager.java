@@ -684,7 +684,8 @@ public class TournamentManager extends ZUtils implements Tournament {
 						return;
 					}
 
-					duels.forEach(duel -> {
+					// Fix #1 — timeout else-path: properly eliminate the loser
+					new ArrayList<>(duels).forEach(duel -> {
 
 						duel.heal();
 
@@ -703,6 +704,19 @@ public class TournamentManager extends ZUtils implements Tournament {
 						looser.show();
 						looser.teleport(getLocation());
 
+						looser.setPosition(currentTeams--);
+						looser.message(Message.TOURNAMENT_DUEL_LOOSE, "%position%",
+								String.valueOf(looser.getPosition()), "%team%", String.valueOf(maxTeams));
+						looser.getRealPlayers().forEach(offlinePlayer -> {
+							if (offlinePlayer.isOnline()) {
+								givePotions(offlinePlayer.getPlayer());
+							}
+						});
+						if (!eliminatedTeams.contains(looser)) {
+							eliminatedTeams.add(looser);
+						}
+						teams.remove(looser);
+
 					});
 
 					duels.clear();
@@ -710,7 +724,6 @@ public class TournamentManager extends ZUtils implements Tournament {
 					canStartNextWave();
 
 				}
-
 			}
 		}.runTaskTimer(ZPlugin.z(), 0, Config.enableDebug ? 4 : 20);
 	}
@@ -792,38 +805,46 @@ public class TournamentManager extends ZUtils implements Tournament {
 			});
 		}
 
-		this.eliminatedTeams.forEach(team -> {
+		// Fix #3 — sort by position descending (last eliminated first, winner last)
+		// and schedule each reward 1 s apart to avoid chat/Discord flooding
+		List<Team> sortedEliminated = new ArrayList<>(this.eliminatedTeams);
+		sortedEliminated.sort((a, b) -> Integer.compare(b.getPosition(), a.getPosition()));
 
-			Reward reward = this.getReward(team.getPosition());
+		for (int i = 0; i < sortedEliminated.size(); i++) {
+			final Team team = sortedEliminated.get(i);
+			Bukkit.getScheduler().runTaskLater(ZPlugin.z(), () -> {
 
-			TournamentTeamRewardEvent tournamentEvent = new TournamentTeamRewardEvent(team, reward);
-			tournamentEvent.callEvent();
+				Reward reward = this.getReward(team.getPosition());
 
-			if (tournamentEvent.isCancelled()) {
-				return;
-			}
+				TournamentTeamRewardEvent tournamentEvent = new TournamentTeamRewardEvent(team, reward);
+				tournamentEvent.callEvent();
 
-			reward = tournamentEvent.getReward();
+				if (tournamentEvent.isCancelled()) {
+					return;
+				}
 
-			if (reward != null) {
+				Reward finalReward = tournamentEvent.getReward();
 
-				reward.getCommands().forEach(command -> {
+				if (finalReward != null) {
 
-					String finalCommand = command.replace("%team%", team.getName()).replace("%leader%",
-							team.getOwner().getName());
+					finalReward.getCommands().forEach(command -> {
 
-					if (finalCommand.contains("%player%")) {
-						team.getRealPlayers().forEach(player -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
-								finalCommand.replace("%player%", player.getName())));
-					} else {
-						Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand);
-					}
+						String finalCommand = command.replace("%team%", team.getName()).replace("%leader%",
+								team.getOwner().getName());
 
-				});
+						if (finalCommand.contains("%player%")) {
+							team.getRealPlayers().forEach(player -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
+									finalCommand.replace("%player%", player.getName())));
+						} else {
+							Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand);
+						}
 
-			}
+					});
 
-		});
+				}
+
+			}, 20L * i);
+		}
 
 		this.eliminatedTeams.clear();
 	}
@@ -1287,7 +1308,8 @@ public class TournamentManager extends ZUtils implements Tournament {
 		TournamentEvent event = new TournamentWaveCommandNextEvent();
 		event.callEvent();
 
-		duels.forEach(duel -> {
+		// Fix #1 — nextWave: properly eliminate the loser of each active duel
+		new ArrayList<>(duels).forEach(duel -> {
 
 			duel.heal();
 
@@ -1305,6 +1327,19 @@ public class TournamentManager extends ZUtils implements Tournament {
 			looser.heal();
 			looser.show();
 			looser.teleport(getLocation());
+
+			looser.setPosition(this.currentTeams--);
+			looser.message(Message.TOURNAMENT_DUEL_LOOSE, "%position%",
+					String.valueOf(looser.getPosition()), "%team%", String.valueOf(this.maxTeams));
+			looser.getRealPlayers().forEach(offlinePlayer -> {
+				if (offlinePlayer.isOnline()) {
+					givePotions(offlinePlayer.getPlayer());
+				}
+			});
+			if (!this.eliminatedTeams.contains(looser)) {
+				this.eliminatedTeams.add(looser);
+			}
+			this.teams.remove(looser);
 
 		});
 
@@ -1368,8 +1403,9 @@ public class TournamentManager extends ZUtils implements Tournament {
 
 	@Override
 	public Reward getReward(int position) {
+		// Fix #2 — condition was inverted (maxPosition <= pos && minPosition >= pos)
 		return Config.rewards.stream()
-				.filter(reward -> reward.getMaxPosition() <= position && reward.getMinPosition() >= position).findAny()
+				.filter(reward -> reward.getMinPosition() <= position && reward.getMaxPosition() >= position).findAny()
 				.orElse(null);
 	}
 
